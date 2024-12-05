@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <MCP23017.h>
+#include "ButtonArrayMapper.h"
 
 
 #define BUTTON_ARRAY_SIZE 8
@@ -21,6 +22,7 @@ private:
   uint8_t _lastStateB;
   unsigned long _lastPressB[BUTTON_ARRAY_SIZE];
   unsigned long _lastReleaseB[BUTTON_ARRAY_SIZE];  
+  ButtonArrayMapper* _mapper;
 
   bool IsBitSet(uint8_t value, uint8_t bitPosition)
   {
@@ -29,9 +31,22 @@ private:
 
 
 public:
-  ButtonArray(uint8_t i2cAddress, MCP23017& mcp) : _mcp(mcp)
+  ButtonArray(uint8_t i2cAddress, MCP23017& mcp, ButtonArrayMapper& mapper) : _mcp(mcp), _mapper(&mapper)
   {
     _i2cAddress = i2cAddress;
+  }
+
+  ButtonArray(uint8_t i2cAddress, MCP23017& mcp) : _mcp(mcp)
+  {
+   _i2cAddress = i2cAddress;
+   _mapper = new DefaultButtonArrayMapper();
+  }
+
+  void (*ButtonPressed)(int sender, uint8_t index) = 0;
+  void (*ButtonReleased)(int sender, uint8_t index) = 0;  
+
+  void Initialize()
+  {
     _lastStateA = 0;
     _lastStateB = 0;
     for(int i=0; i<BUTTON_ARRAY_SIZE; i++)
@@ -41,13 +56,7 @@ public:
       _lastPressB[i] = 0;
       _lastReleaseB[i] = 0;
     }
-  }
 
-  void (*ButtonPressed)(int sender, unsigned char index) = 0;
-  void (*ButtonReleased)(int sender, unsigned char index) = 0;  
-
-  void Initialize()
-  {
     _mcp.init();
     _mcp.portMode(MCP23017Port::A, 0b11111111); //Port A as input
     _mcp.portMode(MCP23017Port::B, 0b11111111); //Port B as input
@@ -71,7 +80,7 @@ public:
           if(now > (_lastPressA[i] + BUTTON_ARRAY_DEBOUNCE_DELAY))
           {
             _lastPressA[i] = now;
-            ButtonPressed(_i2cAddress, i);
+            ButtonPressed(_i2cAddress, _mapper->MapPortAIndex(i));
           }
         }
         
@@ -80,7 +89,7 @@ public:
           if(now > (_lastReleaseA[i] + BUTTON_ARRAY_DEBOUNCE_DELAY) && _lastPressA[i] > _lastReleaseA[i])
           {
             _lastReleaseA[i] = now;
-            ButtonReleased(_i2cAddress, i);
+            ButtonReleased(_i2cAddress, _mapper->MapPortAIndex(i));
           }
         }
       }
@@ -98,7 +107,7 @@ public:
           if(now > (_lastPressB[i] + BUTTON_ARRAY_DEBOUNCE_DELAY))
           {
             _lastPressB[i] = now;
-            ButtonPressed(_i2cAddress, i+8);
+            ButtonPressed(_i2cAddress, _mapper->MapPortBIndex(i));
           }
         }
         
@@ -107,7 +116,7 @@ public:
           if(now > (_lastReleaseB[i] + BUTTON_ARRAY_DEBOUNCE_DELAY) && _lastPressB[i] > _lastReleaseB[i])
           {
             _lastReleaseB[i] = now;
-            ButtonReleased(_i2cAddress, i+8);
+            ButtonReleased(_i2cAddress, _mapper->MapPortBIndex(i));
           }
         }
       }

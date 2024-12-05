@@ -27,12 +27,14 @@ MCP23017 tracks0304Mcp(0x23);
 MCP23017 tracks0506Mcp(0x24);
 MCP23017 tracks0708Mcp(0x25);
 
+TrackButtonArrayMapper trackButtonArrayMapper;
+
 ButtonArray *functionButtons = new ButtonArray(0x20, functionsMcp);
 ButtonArray *inOutButtons = new ButtonArray(0x21, inOutMcp);
-ButtonArray *track0102Buttons = new ButtonArray(0x022, tracks0102Mcp);
-ButtonArray *track0304Buttons = new ButtonArray(0x023, tracks0304Mcp);
-ButtonArray *track0506Buttons = new ButtonArray(0x024, tracks0506Mcp);
-ButtonArray *track0708Buttons = new ButtonArray(0x025, tracks0708Mcp);
+ButtonArray *track0102Buttons = new ButtonArray(0x022, tracks0102Mcp, trackButtonArrayMapper);
+ButtonArray *track0304Buttons = new ButtonArray(0x023, tracks0304Mcp, trackButtonArrayMapper);
+ButtonArray *track0506Buttons = new ButtonArray(0x024, tracks0506Mcp, trackButtonArrayMapper);
+ButtonArray *track0708Buttons = new ButtonArray(0x025, tracks0708Mcp, trackButtonArrayMapper);
 
 
 UIManager *uimanager = new UIManager();

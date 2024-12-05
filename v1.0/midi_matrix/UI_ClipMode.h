@@ -23,7 +23,7 @@ private:
 /* sender | index
 * eg. buttons[0][6] => Function#6
 *
-* 0: functions (0-7)        => 0: arm, 1-7: function 1-7
+* 0: functions (8-15)       => 15: arm, 8-14: function 1-7
 * 1: input/output (0-15)    => 0-3: input 1-4, 8-15: output 1-8
 * 2: track 1+2 (0-15)       => 0-7: track 1 clip 1-8, 8-15: track 2 clip 1-8
 * 3: track 3+4 (0-15)       => 0-7: track 3 clip 1-8, 8-15: track 4 clip 1-8
@@ -89,6 +89,7 @@ private:
 
     void HandleFunctionPressed(unsigned char index)
     {
+        index = index - 8;
         if(index < 0 || index > 6) return; // must be inside the tempofactors array
         // set tempo for all pressed clips
         for(int i=SENDER_TRACK_1_2; i<=SENDER_TRACK_7_8; i++) // [2..5]
@@ -98,7 +99,7 @@ private:
                 if(pressed[i][j]) // the clip is pressed
                 {
                     unsigned char c = (j<8) ? j : j-8;
-                    unsigned char t = (j<8) ? i : i+1;
+                    unsigned char t = i-2;
                     Clip *clip = clips[t][c];
                     if(clip!=0)
                         ClipChangeTempoFactor(clip,tempofactors[index]);
@@ -153,6 +154,28 @@ private:
 
     void PrintPressed()
     {
+      Serial.println("#inputs");
+      for(int i=0; i<4; i++)
+      {
+        if(pressed[SENDER_INPUT_OUTPUT][i])
+          Serial.print("X");
+        else
+          Serial.print("o");
+        Serial.print(" ");
+      }
+      Serial.println();
+      Serial.println("#outputs");
+      for(int i=8; i<15; i++)
+      {
+        if(pressed[SENDER_INPUT_OUTPUT][i])
+          Serial.print("X");
+        else
+          Serial.print("o");
+        Serial.print(" ");
+      }
+      Serial.println();      
+
+
       Serial.println("#clips");
       for(int i=SENDER_TRACK_1_2; i<=SENDER_TRACK_7_8; i++) // [2..5]
         {
@@ -166,9 +189,19 @@ private:
                 Serial.print(" ");
                 if((j+1)%8==0)
                   Serial.println();
-
             }
         }
+
+      Serial.println("#functions");
+      for(int i=15; i>=8; i--)
+      {
+        if(pressed[SENDER_FUNCTIONS][i])
+          Serial.print("X");
+        else
+          Serial.print("o");
+        Serial.print(" ");
+      }
+      Serial.println();  
     }
 
 public:
@@ -203,11 +236,13 @@ public:
 
         pressed[sender][index] = true;
 
+        Serial.print("sender:"); Serial.print(sender); Serial.print(" index:"), Serial.println(index);
+
         PrintPressed();
 
-        if(sender==SENDER_FUNCTIONS && index == 7)
+        if(sender==SENDER_FUNCTIONS && index == 15)
             HandleArmPressed();
-        if(sender==SENDER_FUNCTIONS && index >= 0 && index < 7)
+        if(sender==SENDER_FUNCTIONS && index >= 8 && index < 15)
             HandleFunctionPressed(index);
         if(sender==SENDER_INPUT_OUTPUT && index >= 0 && index < 8 )
             HandleOutputPressed(index);
@@ -215,36 +250,30 @@ public:
         if(sender==SENDER_TRACK_1_2)
         {
             if(index < 8)
-            {
-                pressed[1][7-index] = true;
-                HandleClipPressed(1, 7-index); //index 7=>0, index 6=>1...index 0=>7
-            }
+                HandleClipPressed(0, index); 
             else
-            {
-                pressed[0][15-index] = true;
-                HandleClipPressed(0, 15-index);//index 15=>0, index 14=>1...index 8=>7
-            }
+                HandleClipPressed(1, index-8);
         }
         else if(sender==SENDER_TRACK_3_4)
         {
             if(index < 8)
-                HandleClipPressed(3, 7-index);
+                HandleClipPressed(2, index);
             else
-                HandleClipPressed(2, 15-index);            
+                HandleClipPressed(3, index-8);            
         }
         else if(sender==SENDER_TRACK_5_6)
         {
             if(index < 8)
-                HandleClipPressed(5, 7-index);
+                HandleClipPressed(4, index);
             else
-                HandleClipPressed(4, 15-index);            
+                HandleClipPressed(5, index-8);            
         }            
         else if(sender==SENDER_TRACK_7_8)
         {
             if(index < 8)
-                HandleClipPressed(7, 7-index);
+                HandleClipPressed(6, index);
             else
-                HandleClipPressed(6, 15-index);            
+                HandleClipPressed(7, index-8);            
         }
 
         return 0;
