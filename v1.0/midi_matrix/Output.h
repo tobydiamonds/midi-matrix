@@ -33,7 +33,7 @@ void InitOutputs()
 
 void PlayMessage(Output *output, unsigned char type, unsigned char data1, unsigned char data2)
 {
-    if (output->IsEnabled)// || type == 0x80) // always send not-off messages?
+    if (output->IsEnabled || type == 0x80) // always send not-off messages
     {
         unsigned char status = GetStatus(type, output->Channel);
         unsigned char messageLength = ExpectedMessageLength(type);

@@ -16,6 +16,7 @@
 class Clip
 {
 private:
+  MidiMessage* midiMessages[CLIP_MAX_MESSAGES];
 
 public:
     unsigned char TrackIdx;
@@ -36,6 +37,11 @@ public:
         CurrentBar = 0;
         IsEndOfClip = false;
         LastPosition = (CLIP_MAX_BARS * ONE_BAR)-1; // 4 bars with 96 positions each
+
+        // Initialize the array
+        for (int i = 0; i < CLIP_MAX_MESSAGES; i++) {
+          midiMessages[i] = nullptr;
+        }        
     }
 
     bool Selected() { return Status & CLIP_SELECTED; }
@@ -47,22 +53,75 @@ public:
     bool EndOfClip() { return IsEndOfClip; }
 
 
-    bool AddMessage(unsigned char position, unsigned char type, unsigned char data1, unsigned char data2)
+    bool AddMessage(int position, uint8_t type, uint8_t data1, uint8_t data2)
     {
+      if (position < 0 || position >= CLIP_MAX_MESSAGES) {
+        Serial.println("Invalid position!");
+        return;
+      }
 
+      // Allocate memory for the message and store it
+      midiMessages[position] = new MidiMessage(type, data1, data2);
+    }
+
+    MidiMessage* GetMessage(int position)
+    {
+      if (position < 0 || position >= CLIP_MAX_MESSAGES) {
+        return nullptr;
+      }
+      return midiMessages[position];      
     }
 
     void RemoveMessages()
     {
-
+      for(int i=0; i<CLIP_MAX_MESSAGES; i++)
+      {
+        if (midiMessages[i] != nullptr) {
+          delete midiMessages[i];
+          midiMessages[i] = nullptr;
+        }        
+      }
     }    
 
     void ListMessages()
     {
+      for (int i = 0; i < CLIP_MAX_MESSAGES; i++) {
+        if (midiMessages[i] != nullptr) {
+          Serial.print("Position ");
+          Serial.print(i);
+          Serial.print(": ");
+          Serial.print(midiMessages[i]->Type, HEX);
+          Serial.print(" ");
+          Serial.print(midiMessages[i]->Data1);
+          Serial.print(" ");
+          Serial.println(midiMessages[i]->Data2);
+        }
+      }      
+    }
+
+    bool HasMessages()
+    {
+      for (int i = 0; i < CLIP_MAX_MESSAGES; i++) {
+        if (midiMessages[i] != nullptr)
+          return true;
+      }
+      return false;
     }
 
     void Play(unsigned int position, Output* output)
     {
+      MidiMessage *message = GetMessage(position);
+      if(message != nullptr && (this->Playing() || message->Type == 0x80)) {
+       /* Serial.print("CLIP [");
+        Serial.print(TrackIdx);
+        Serial.print("][");
+        Serial.print(ClipIdx);
+        Serial.print("] playing message: ");
+        Serial.print(message->Type, HEX);
+        Serial.print(message->Data1, HEX);
+        Serial.println(message->Data2, HEX);*/
+        PlayMessage(output, message);
+      }
     }
 };
 
@@ -79,6 +138,45 @@ void InitClips()
         }
     }
     //InitTrackMessages();
+
+    clips[0][0]->AddMessage(0, 0x90, 72, 127); // note on 1/1/1 (bar/beat/16th)
+    clips[0][0]->AddMessage(1, 0x80, 72, 0); // note off  1/1/8
+
+    clips[0][0]->AddMessage(4, 0x90, 60, 127);
+    clips[0][0]->AddMessage(5, 0x80, 60, 0);   
+
+    clips[0][0]->AddMessage(8, 0x90, 60, 127);
+    clips[0][0]->AddMessage(9, 0x80, 60, 0);   
+
+    clips[0][0]->AddMessage(12, 0x90, 60, 127);
+    clips[0][0]->AddMessage(13, 0x80, 60, 0);     
+
+
+    for(int i=0; i<=15; i++)
+    {
+      if(i%2==0)
+      {
+        clips[1][0]->AddMessage(i, 0x90, 36, 127);
+        clips[1][0]->AddMessage(i+1, 0x80, 36, 0);
+      }
+    }
+
+    uint8_t base = 60;
+    int scaleIntervals[] = {0, 2, 4, 5, 7, 9, 11, 12};
+    int scaleIntervals2[] = {7, 5, 2, 1, 1, 8, 12, 11};
+    for(int i=0; i<15; i++)
+    {
+      if(i%2==0)
+      {
+        uint8_t note = base + scaleIntervals[i/2];
+        clips[2][0]->AddMessage(i, 0x90, note, 127);
+        clips[2][0]->AddMessage(i+1, 0x80, note, 0);
+
+        note = base + scaleIntervals2[i/2];
+        clips[2][1]->AddMessage(i, 0x90, note, 127);
+        clips[2][1]->AddMessage(i+1, 0x80, note, 0);        
+      }
+    }
 }
 
 void SetClipSelected(Clip* clip) { clip->Status |= CLIP_SELECTED; }
@@ -93,57 +191,6 @@ void ResetClipRecording(Clip* clip) { clip->Status &= ~CLIP_RECORDING; }
 void ResetClipLoop(Clip* clip) { clip->Status &= ~CLIP_LOOPING; }
 
 
-void ListClipMessages(Clip *clip)
-{
-    clip->ListMessages();
-}
-
-void AddMessageToClip(unsigned char position, Clip *clip, unsigned char type, unsigned char data1, unsigned char data2)
-{
-    char buf[100];
-    sprintf(buf, "adding message for clip[%d][%d]: [%d]", clip->TrackIdx, clip->ClipIdx, clip->CurrentBar);
-    Serial.print(buf);
-}
-
-void RemoveMessagesFromClip(Clip* clip)
-{
-}
-
-void BeforeStartClip(Clip* clip)
-{
-    // load messages
-}
-
-void StartClip(Clip* clip)
-{
-    clip->CurrentBar = 0;
-    SetClipPlaying(clip);
-
-        Serial.print("CLIP [");
-        Serial.print(clip->TrackIdx);
-        Serial.print("][");
-        Serial.print(clip->ClipIdx);
-        Serial.print("] Selected: ");
-        Serial.print(clip->Selected());
-        Serial.print("  Playing: ");
-        Serial.print(clip->Playing());
-        Serial.print("  Armed: ");
-        Serial.println(clip->Armed());    
-}
-
-void AfterStopClip(Clip* clip)
-{
-    
-}
-
-void StopClip(Clip* clip)
-{
-    ResetClipPlaying(clip);
-    AfterStopClip(clip);
-}
-
-
-
 void ClipChangeTempoFactor(Clip *clip, int factor)
 {
     // set the value
@@ -152,12 +199,6 @@ void ClipChangeTempoFactor(Clip *clip, int factor)
     // re-arrange data in the message array
 }
 
-void PlayClip(unsigned char position, Output *output, Clip *clip)
-{
-    if(position >= ONE_BAR)
-        return;
 
-    clip->Play(position, output);
-}
 
 #endif

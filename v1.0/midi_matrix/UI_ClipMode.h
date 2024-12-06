@@ -38,8 +38,21 @@ private:
     {
         for(int i=0; i<INPUTS; i++)
         {
-            if(pressed[SENDER_INPUT_OUTPUT][i+8])
+            if(pressed[SENDER_INPUT_OUTPUT][i])
                 return true;
+        }
+        return false;
+    }
+
+    bool IsAnyClipsPressed()
+    {
+        for(int i=SENDER_TRACK_1_2; i<=SENDER_TRACK_7_8; i++) // [2..5]
+        {
+            for(int j=0; j<MAX_INDEXES; j++)
+            {
+                if(pressed[i][j])
+                  return true;
+            }
         }
         return false;
     }
@@ -87,31 +100,48 @@ private:
 
     }
 
-    void HandleFunctionPressed(unsigned char index)
+    void HandleFunctionPressed(uint8_t index)
     {
         index = index - 8;
         if(index < 0 || index > 6) return; // must be inside the tempofactors array
         // set tempo for all pressed clips
-        for(int i=SENDER_TRACK_1_2; i<=SENDER_TRACK_7_8; i++) // [2..5]
+        if(IsAnyClipsPressed())
         {
-            for(int j=0; j<MAX_INDEXES; j++)
-            {
-                if(pressed[i][j]) // the clip is pressed
-                {
-                    unsigned char c = (j<8) ? j : j-8;
-                    unsigned char t = i-2;
-                    Clip *clip = clips[t][c];
-                    if(clip!=0)
-                        ClipChangeTempoFactor(clip,tempofactors[index]);
+          for(int i=SENDER_TRACK_1_2; i<=SENDER_TRACK_7_8; i++) // [2..5]
+          {
+              for(int j=0; j<MAX_INDEXES; j++)
+              {
+                  if(pressed[i][j]) // the clip is pressed
+                  {
+                      uint8_t t = 0;
+                      if(i==2 && j<8) t=0;
+                      else if(i==2) t=1;
+                      else if(i==3 && j<8) t=2;
+                      else if(i==3) t=3;
+                      else if(i==4 && j<8) t=4;
+                      else if(i==4) t=5;
+                      else if(i==5 && j<8) t=6;
+                      else t=7;
 
-                    Serial.print("CLIP [");
-                    Serial.print(clip->TrackIdx);
-                    Serial.print("][");
-                    Serial.print(clip->ClipIdx);
-                    Serial.print("] Tempo factor: ");
-                    Serial.println(clip->TempoFactor);
-                }
-            }
+                      uint8_t c = (j<8) ? j : j-8;
+
+                      Clip *clip = clips[t][c];
+                      if(clip!=0)
+                          ClipChangeTempoFactor(clip,tempofactors[index]);
+
+                      Serial.print("CLIP [");
+                      Serial.print(clip->TrackIdx);
+                      Serial.print("][");
+                      Serial.print(clip->ClipIdx);
+                      Serial.print("] Tempo factor: ");
+                      Serial.println(clip->TempoFactor);
+                  }
+              }
+          }
+        }
+        else
+        {
+          TriggerSetBpmCallback(tempofactors[index]);
         }
     }
 
@@ -124,10 +154,16 @@ private:
             {
                 ResetClipArmed(clip);
                 SetClipPlaying(clip); // when ending recording swith to playmode
-                ListClipMessages(clip);
             }
             else
                 SetClipArmed(clip);
+        }
+        else if(clip->HasMessages())
+        {
+            if(clip->Playing())
+              ResetClipPlaying(clip);
+            else
+              SetClipPlaying(clip);
         }
         else
         {
@@ -150,58 +186,24 @@ private:
         Serial.print("  Tempo factor: ");
         Serial.print(clip->TempoFactor);
         Serial.println();
+
+        //clip->ListMessages();
     }
 
     void PrintPressed()
     {
-      Serial.println("#inputs");
-      for(int i=0; i<4; i++)
+      for(int i=0; i<MAX_SENDERS; i++)
       {
-        if(pressed[SENDER_INPUT_OUTPUT][i])
-          Serial.print("X");
-        else
-          Serial.print("o");
-        Serial.print(" ");
-      }
-      Serial.println();
-      Serial.println("#outputs");
-      for(int i=8; i<15; i++)
-      {
-        if(pressed[SENDER_INPUT_OUTPUT][i])
-          Serial.print("X");
-        else
-          Serial.print("o");
-        Serial.print(" ");
-      }
-      Serial.println();      
-
-
-      Serial.println("#clips");
-      for(int i=SENDER_TRACK_1_2; i<=SENDER_TRACK_7_8; i++) // [2..5]
+        for(int j=0; j<MAX_INDEXES; j++)
         {
-            for(int j=0; j<MAX_INDEXES; j++)
-            {
-                if(pressed[i][j]) // the clip is pressed
-                  Serial.print("X");
-                else
-                  Serial.print("o");
-
-                Serial.print(" ");
-                if((j+1)%8==0)
-                  Serial.println();
-            }
+          if(pressed[i][j])
+            Serial.print("X");
+          else
+            Serial.print("o");
+          Serial.print(" ");
         }
-
-      Serial.println("#functions");
-      for(int i=15; i>=8; i--)
-      {
-        if(pressed[SENDER_FUNCTIONS][i])
-          Serial.print("X");
-        else
-          Serial.print("o");
-        Serial.print(" ");
+        Serial.println();
       }
-      Serial.println();  
     }
 
 public:
@@ -236,16 +238,15 @@ public:
 
         pressed[sender][index] = true;
 
-        Serial.print("sender:"); Serial.print(sender); Serial.print(" index:"), Serial.println(index);
-
-        PrintPressed();
+        //Serial.print("sender:"); Serial.print(sender); Serial.print(" index:"), Serial.println(index);
+        //PrintPressed();
 
         if(sender==SENDER_FUNCTIONS && index == 15)
             HandleArmPressed();
         if(sender==SENDER_FUNCTIONS && index >= 8 && index < 15)
             HandleFunctionPressed(index);
-        if(sender==SENDER_INPUT_OUTPUT && index >= 0 && index < 8 )
-            HandleOutputPressed(index);
+        if(sender==SENDER_INPUT_OUTPUT && index >= 8 && index < 16 )
+            HandleOutputPressed(index-8);
 
         if(sender==SENDER_TRACK_1_2)
         {
@@ -287,11 +288,10 @@ public:
 
         pressed[sender][index] = false;
 
-        PrintPressed();
+        //PrintPressed();
 
         return 0;
     }    
-
 };
 
 #endif

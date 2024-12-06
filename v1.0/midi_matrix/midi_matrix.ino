@@ -40,6 +40,9 @@ ButtonArray *track0708Buttons = new ButtonArray(0x025, tracks0708Mcp, trackButto
 UIManager *uimanager = new UIManager();
 UI *clipui = new UIClipMode();
 
+unsigned long position = 0;
+unsigned int bpm = 120;
+
 void OnButtonPressed(int sender, unsigned char index)
 {
   uimanager->HandleButtonPressed(sender, index);
@@ -56,12 +59,76 @@ void OnButtonReleased(int sender, unsigned char index)
   Serial.println(buf);*/
 }
 
+void OnSetBpm(int factor)
+{
+  unsigned long f = 120 * factor;
+  bpm = f/100;
+  Serial.print("setting bpm to "); Serial.println(bpm);
+  SetupTimer1();
+}
+
+int GetBpm()
+{
+  return bpm;
+}
+
+void SetupTimer1() {
+  noInterrupts(); // Disable interrupts during setup
+
+  // Configure Timer1 for the desired interrupt frequency
+  TCCR1A = 0;              // Normal operation mode
+  TCCR1B = 0;              // Clear the control register
+  TCNT1 = 0;               // Reset the timer count
+  unsigned long interval = 60000 / (GetBpm() * 24); // Interval for MIDI clock ticks
+  unsigned long compareMatch = (16 * interval * 1000) / 1024; // Convert ms to timer ticks (16 MHz clock, 1024 prescaler)
+
+  OCR1A = compareMatch;    // Set the compare match register
+  TCCR1B |= (1 << WGM12);  // CTC mode (Clear Timer on Compare)
+  TCCR1B |= (1 << CS12) | (1 << CS10); // Set prescaler to 1024
+
+  TIMSK1 |= (1 << OCIE1A); // Enable Timer1 compare interrupt
+  interrupts();            // Enable interrupts globally
+}
+int quaters = 0;
+int eights = 0;
+int sixteens = 0;
+// Timer1 interrupt service routine
+ISR(TIMER1_COMPA_vect) {
+
+  if(position == 0 || position % 6 == 0)
+  {
+    for(int t=0; t<TRACKS; t++)
+    {
+      for(int c=0; c<CLIPS_PR_TRACK; c++)
+      {
+        clips[t][c]->Play(sixteens, outputs[t]);
+      }
+    }
+  }  
+
+  if(position < ONE_BAR-1)
+  {
+    position++;    
+    if(position % 6 == 0) sixteens++;
+  }
+  else
+  {
+    position = 0;
+    quaters = 0;
+    eights = 0;
+    sixteens = 0;
+  }  
+}
+
+
 void setup() {
   pinMode(__RESET_PIN, OUTPUT);
   digitalWrite(__RESET_PIN, HIGH); // not reset input arrays
 
   Wire.begin();
-  Serial.begin(115200);
+  // serial
+  Serial.begin(115200); // debugging
+  Serial1.begin(31250); // midi serial
 
   // init button arrays
   functionButtons->Initialize();
@@ -89,6 +156,7 @@ void setup() {
   track0708Buttons->ButtonReleased = OnButtonReleased;      
 
   // init UI
+  clipui->SetBpm(OnSetBpm);
   uimanager->Add(clipui);
   uimanager->SwitchUI(0); // activate the clip-mode UI
   uimanager->Initialize();
@@ -101,9 +169,30 @@ void setup() {
 
   // init output
   InitOutputs();
+  outputs[1]->IsEnabled = true;
+
+  SetupTimer1();
 
 }
 
+extern unsigned int __bss_end; // End of global/static variables
+extern unsigned int __heap_start; // Start of heap
+extern void *__brkval;           // Current end of the heap
+unsigned long lastMemReport = 0;
+// Function to calculate free SRAM
+int freeSRAM() {
+  int free_memory;
+  if ((int)__brkval == 0) {
+    // If no heap allocation has been done, use the end of .bss
+    free_memory = (int)&free_memory - (int)&__bss_end;
+  } else {
+    // Use the gap between heap and stack
+    free_memory = (int)&free_memory - (int)__brkval;
+  }
+  return free_memory;
+}
+
+unsigned long now = 0;
 void loop() {
   functionButtons->Run();
   inOutButtons->Run();
@@ -111,5 +200,15 @@ void loop() {
   track0304Buttons->Run();
   track0506Buttons->Run();
   track0708Buttons->Run();
+
+
+  now = millis();
+  if(now > (lastMemReport + 5000))
+  {
+    lastMemReport = millis();
+    Serial.print("Free SRAM: ");
+    Serial.print(freeSRAM());
+    Serial.println(" bytes");  
+  }
 
 }

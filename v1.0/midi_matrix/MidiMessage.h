@@ -6,25 +6,19 @@
 
 struct MidiMessage
 {
-    unsigned char Bar;
-    unsigned char Position;
-    unsigned char Type;
-    unsigned char Data1;
-    unsigned char Data2;
+    uint8_t Type;
+    uint8_t Data1;
+    uint8_t Data2;
 
     MidiMessage()
     {
-        Bar = 0;
-        Position = 0;
         Type = 0x00;
         Data1 = 0x00;
         Data2 = 0x00;
     }
 
-    MidiMessage(unsigned char bar, unsigned char position, unsigned char type, unsigned char data1, unsigned char data2)
+    MidiMessage(uint8_t type, uint8_t data1, uint8_t data2)
     {
-        Bar = bar;
-        Position = position;
         Type = type;
         Data1 = data1;
         Data2 = data2;

@@ -5,13 +5,14 @@
 
 #define MIDI_PPQ 24
 
-#define TRACKS 8
+#define TRACKS 4//8
 #define CLIPS_PR_TRACK 8
 #define CLIP_MAX_BARS 4 // how many bars to be able to store
 #define CLIP_OVERDUBBING_PR_MESSAGE 8
 
 #define ONE_BAR 96 // PPQ * 4 => 24 * 4
-#define CLIP_MESSAGES_PR_BAR 32 // PPQ * 4 => we are planning on 4 beats pr bar - changed to 32 - maybe this will be enough?
+#define CLIP_MAX_MESSAGES 16 // 1bar 16th notes 
+
 
 //https://users.cs.cf.ac.uk/Dave.Marshall/Multimedia/node158.html
 enum MidiType
