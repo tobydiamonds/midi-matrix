@@ -3,9 +3,11 @@
 #include "ButtonArray.h"
 #include "Input.h"
 #include "Clip.h"
+#include "ClipManager.h"
 #include "Output.h"
 #include "UIManager.h"
 #include "UI_ClipMode.h"
+#include "Song.h"
 
 
 /*
@@ -39,6 +41,9 @@ ButtonArray *track0708Buttons = new ButtonArray(0x025, tracks0708Mcp, trackButto
 
 UIManager *uimanager = new UIManager();
 UI *clipui = new UIClipMode();
+
+ClipManager *clipManager = new ClipManager();
+Song *song = new Song();
 
 unsigned long position = 0;
 unsigned int bpm = 120;
@@ -95,16 +100,7 @@ int sixteens = 0;
 // Timer1 interrupt service routine
 ISR(TIMER1_COMPA_vect) {
 
-  if(position == 0 || position % 6 == 0)
-  {
-    for(int t=0; t<TRACKS; t++)
-    {
-      for(int c=0; c<CLIPS_PR_TRACK; c++)
-      {
-        clips[t][c]->Play(sixteens, outputs[t]);
-      }
-    }
-  }  
+  //clipManager->Run(position, sixteens);
 
   if(position < ONE_BAR-1)
   {
@@ -170,6 +166,8 @@ void setup() {
   // init output
   InitOutputs();
   outputs[1]->IsEnabled = true;
+
+  song->Initialize();
 
   SetupTimer1();
 

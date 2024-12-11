@@ -26,7 +26,8 @@ public:
     unsigned int LastPosition;
     unsigned char CurrentBar;
     bool IsEndOfClip;
-    
+    bool OneShot;
+       
 
     Clip(unsigned char trackidx, unsigned char clipidx)
     {
@@ -36,6 +37,7 @@ public:
         Status = CLIP_NOT_SELECTED;
         CurrentBar = 0;
         IsEndOfClip = false;
+        OneShot = true;
         LastPosition = (CLIP_MAX_BARS * ONE_BAR)-1; // 4 bars with 96 positions each
 
         // Initialize the array
@@ -111,15 +113,7 @@ public:
     void Play(unsigned int position, Output* output)
     {
       MidiMessage *message = GetMessage(position);
-      if(message != nullptr && (this->Playing() || message->Type == 0x80)) {
-       /* Serial.print("CLIP [");
-        Serial.print(TrackIdx);
-        Serial.print("][");
-        Serial.print(ClipIdx);
-        Serial.print("] playing message: ");
-        Serial.print(message->Type, HEX);
-        Serial.print(message->Data1, HEX);
-        Serial.println(message->Data2, HEX);*/
+      if(message != nullptr) {
         PlayMessage(output, message);
       }
     }
@@ -138,7 +132,7 @@ void InitClips()
         }
     }
     //InitTrackMessages();
-
+/*
     clips[0][0]->AddMessage(0, 0x90, 72, 127); // note on 1/1/1 (bar/beat/16th)
     clips[0][0]->AddMessage(1, 0x80, 72, 0); // note off  1/1/8
 
@@ -176,7 +170,7 @@ void InitClips()
         clips[2][1]->AddMessage(i, 0x90, note, 127);
         clips[2][1]->AddMessage(i+1, 0x80, note, 0);        
       }
-    }
+    }*/
 }
 
 void SetClipSelected(Clip* clip) { clip->Status |= CLIP_SELECTED; }

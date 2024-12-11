@@ -187,7 +187,7 @@ private:
         Serial.print(clip->TempoFactor);
         Serial.println();
 
-        //clip->ListMessages();
+        clip->ListMessages();
     }
 
     void PrintPressed()
