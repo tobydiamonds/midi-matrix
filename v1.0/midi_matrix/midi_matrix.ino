@@ -101,6 +101,7 @@ int sixteens = 0;
 ISR(TIMER1_COMPA_vect) {
 
   //clipManager->Run(position, sixteens);
+  song->Run(position);
 
   if(position < ONE_BAR-1)
   {
@@ -167,6 +168,7 @@ void setup() {
   InitOutputs();
   outputs[1]->IsEnabled = true;
 
+  ReportMemory();
   song->Initialize();
 
   SetupTimer1();
@@ -191,6 +193,19 @@ int freeSRAM() {
 }
 
 unsigned long now = 0;
+void ReportMemory()
+{
+  now = millis();
+  if(now > (lastMemReport + 60000))
+  {
+    lastMemReport = millis();
+    Serial.print("Free SRAM: ");
+    Serial.print(freeSRAM());
+    Serial.println(" bytes");  
+  }
+}
+
+
 void loop() {
   functionButtons->Run();
   inOutButtons->Run();
@@ -199,14 +214,7 @@ void loop() {
   track0506Buttons->Run();
   track0708Buttons->Run();
 
+  ReportMemory();
 
-  now = millis();
-  if(now > (lastMemReport + 5000))
-  {
-    lastMemReport = millis();
-    Serial.print("Free SRAM: ");
-    Serial.print(freeSRAM());
-    Serial.println(" bytes");  
-  }
 
 }

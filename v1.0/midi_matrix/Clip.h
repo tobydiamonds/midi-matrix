@@ -19,17 +19,16 @@ private:
   MidiMessage* midiMessages[CLIP_MAX_MESSAGES];
 
 public:
-    unsigned char TrackIdx;
-    unsigned char ClipIdx;
+    uint8_t TrackIdx;
+    uint8_t ClipIdx;
     unsigned int TempoFactor;
-    unsigned char Status; // x x x Loop Recording Armed Playing Selected
+    uint8_t Status; // x x x Loop Recording Armed Playing Selected
     unsigned int LastPosition;
-    unsigned char CurrentBar;
+    uint8_t CurrentBar;
     bool IsEndOfClip;
     bool OneShot;
-       
 
-    Clip(unsigned char trackidx, unsigned char clipidx)
+    Clip(uint8_t trackidx, uint8_t clipidx)
     {
         TrackIdx = trackidx;
         ClipIdx = clipidx;
@@ -117,6 +116,15 @@ public:
         PlayMessage(output, message);
       }
     }
+
+    void Play(unsigned int position)
+    {
+      MidiMessage *message = GetMessage(position);
+      if(message != nullptr) {
+        Output* output = outputs[this->TrackIdx];
+        PlayMessage(output, message);
+      }
+    }
 };
 
 
@@ -124,9 +132,9 @@ Clip *clips[TRACKS][CLIPS_PR_TRACK];
 
 void InitClips()
 {
-    for(unsigned char t=0; t<TRACKS; t++)
+    for(uint8_t t=0; t<TRACKS; t++)
     {
-        for(unsigned char c=0; c<CLIPS_PR_TRACK; c++)
+        for(uint8_t c=0; c<CLIPS_PR_TRACK; c++)
         {  
             clips[t][c] = new Clip(t, c);
         }
