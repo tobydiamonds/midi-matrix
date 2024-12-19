@@ -1,7 +1,8 @@
 #ifndef Song_h
 #define Song_h
 
-#include <ArduinoJson.h>
+#include "jRead.h" //https://www.codeproject.com/Articles/885389/jRead-An-in-place-JSON-Element-Reader
+#include <avr/pgmspace.h>
 #include "AlwaysOnMyMind.h"
 #include "Clip.h"
 #include "MidiDefs.h"
@@ -90,18 +91,22 @@ private:
   int _currentSize = 0;
   int _currentSixteens = -1;
   
-  unsigned int GetMaxBars(JsonDocument& doc)
+  unsigned int GetMaxBars()
   {
-    unsigned int max = 0;
-    JsonArrayConst song_clips = doc["clips"].as<JsonArrayConst>();
-    for(int c=0; c<song_clips.size(); c++)
-    {
-      JsonVariantConst song_clip = song_clips[c];
-      JsonArrayConst song_clip_bars = song_clip["bars"].as<JsonArrayConst>();
-      if(song_clip_bars.size() > max)
-        max = song_clip_bars.size();
-    }
+    size_t length = strlen_P(always_on_my_mind_json);
+    char json[length+1] {0};// = new char[length + 1];
+    strcpy_P(json, always_on_my_mind_json);
 
+    unsigned int max = 0;
+    struct jReadElement song_clips;
+    jRead(json, "{'clips'", &song_clips);
+    for(int i=0; i<song_clips.elements; i++)
+    {
+      struct jReadElement song_clip_bars;
+      jRead(json, "{'clips'[*{'bars'", &song_clip_bars);
+      if(song_clip_bars.dataType == JREAD_ARRAY && song_clip_bars.elements > max)
+        max = song_clip_bars.elements;
+    }
     return max;
   }
 
@@ -137,71 +142,85 @@ public:
 
   bool Initialize()
   {
-    size_t length = strlen_P(always_on_my_mind_json);
-    Serial.print("json string length: ");
-    Serial.println(length);
-    char* buffer = new char[length + 1];
-    strcpy_P(buffer, always_on_my_mind_json);
-
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, buffer);
-    delete[] buffer;
-    // Test if parsing succeeds.
-    if (error) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.f_str());
-      return false;
-    }
-
-    _length = GetMaxBars(doc);
+    // init bars
+    _length = GetMaxBars();
     Serial.print("song length: "); Serial.println(_length);
     _bars = new Bar[_length];
     for(int i=0; i<_length; i++)
       _bars[i]=Bar();
 
-    // load messages into clips
-    JsonArrayConst song_clips = doc["clips"].as<JsonArrayConst>();
-    for(int c=0; c<song_clips.size(); c++)
-    {
-      JsonVariantConst song_clip = song_clips[c];
 
-      int trackIdx = song_clip["track"].as<int>();
-      int clipIdx = song_clip["clip"].as<int>();
-      const char * description = song_clip["description"];
+    // load messages into clips
+    size_t length = strlen_P(always_on_my_mind_json);
+    char json[length+1] {0};// = new char[length + 1];
+    strcpy_P(json, always_on_my_mind_json);
+    Serial.print("json string length: ");
+    Serial.println(length);
+
+    char path[50];
+
+    struct jReadElement song_clips;
+    jRead(json, "{'clips'", &song_clips);
+    for(int i=0; i<song_clips.elements; i++)
+    {
+
+      int trackIdx = jRead_int(json, "{'clips'[*{'track'", &i);
+      int clipIdx = jRead_int(json, "{'clips'[*{'clip'", &i);
+      char description[20];
+      sprintf(path, "{'clips'[%d{'description'", i);
+      jRead_string(json, path, description, sizeof(description), NULL);
 
       // bars
-      JsonArrayConst song_clip_bars = song_clip["bars"].as<JsonArrayConst>();
-      for(int i=0; i<song_clip_bars.size(); i++)
+      //Serial.print("adding bars for clip["); Serial.print(trackIdx); Serial.print("][");Serial.print(clipIdx);Serial.print("]: ");Serial.println(description);
+
+      
+      sprintf(path, "{'clips'[%d{'bars'", i);
+      struct jReadElement song_clip_bars;
+      jRead(json, path, &song_clip_bars);
+      for(int j=0; j<song_clip_bars.elements; j++)
       {
-        int index = song_clip_bars[i].as<int>();
+        sprintf(path, "{'clips'[%d{'bars'[%d", i,j);
+        int index = jRead_int(json, path, 0);
         _bars[index].Add(trackIdx, clipIdx);
       }
-      
+
+     
       // messages
-      Serial.print("adding messages for clip["); Serial.print(trackIdx); Serial.print("][");Serial.print(clipIdx);Serial.print("]: ");Serial.println(description);
+      //Serial.print("adding messages for clip["); Serial.print(trackIdx); Serial.print("][");Serial.print(clipIdx);Serial.print("]: ");Serial.println(description);
 
       Clip *clip = clips[trackIdx][clipIdx];
-      JsonArrayConst song_clip_messages = song_clip["messages"].as<JsonArrayConst>();
-      for(int i=0; i<song_clip_messages.size(); i++)
+      struct jReadElement song_clip_messages;
+      sprintf(path, "{'clips'[%d{'messages'", i);
+      jRead(json, path, &song_clip_messages);
+      for(int j=0; j<song_clip_messages.elements; j++)
       {
-        JsonArrayConst song_clip_message_data = song_clip_messages[i].as<JsonArrayConst>();
-        for(int j=0; j<song_clip_message_data.size(); j++)
+        struct jReadElement message;
+        sprintf(path, "{'clips'[%d{'messages'[%d", i, j);
+        jRead(json, path, &message);
+
+        for(int k=0; k<message.elements; k++)
         {
-          if((j+1)%3 == 0)
+          if((k+1)%3==0)
           {
-            clip->AddMessage(i, song_clip_message_data[j-2], song_clip_message_data[j-1], song_clip_message_data[j]);
+            sprintf(path, "{'clips'[%d{'messages'[%d[%d", i, j, k-2);
+            uint8_t type = jRead_int(json, path, 0);
+            sprintf(path, "{'clips'[%d{'messages'[%d[%d", i, j, k-1);
+            uint8_t data1 = jRead_int(json, path, 0);           
+            sprintf(path, "{'clips'[%d{'messages'[%d[%d", i, j, k);
+            uint8_t data2 = jRead_int(json, path, 0);
+
+            //Serial.print("message[");Serial.print(j);Serial.print("]: "); Serial.print(type, HEX); Serial.print(" ");Serial.print(data1, HEX); Serial.print(" ");Serial.println(data2, HEX);
+
+            clip->AddMessage(j, type, data1, data2);
           }
         }
       }
 
-      //delete doc;
-     
       // enable outputs
       outputs[trackIdx]->IsEnabled=true;
       // enables clips
-      SetClipPlaying(clip);
+      SetClipPlaying(clip);    
     }
-
     //PrintBars();
 
 
@@ -209,15 +228,12 @@ public:
     _currentSize = 0;
     _currentSixteens = -1;
     _initialized = true;
-    return true;
+    return true;    
   }
 
   void Run(unsigned int position)
   {
     if(!_initialized) return;
-
-
-
 
     // find clips to play in current bar
     if(position==0 && _bar < _length)

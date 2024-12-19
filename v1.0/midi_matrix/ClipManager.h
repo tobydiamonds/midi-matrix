@@ -18,16 +18,12 @@ public:
           Clip *clip = clips[t][c];
           if(clip->HasMessages())
           {
-            MidiMessage *message = clip->GetMessage(position);
-            if(message != nullptr)
-            {
 
-            }
           }
 
           
 
-          clips[t][c]->Play(sixteens, outputs[t]);
+          //clips[t][c]->Play(sixteens, outputs[t]);
         }
       }    
     }

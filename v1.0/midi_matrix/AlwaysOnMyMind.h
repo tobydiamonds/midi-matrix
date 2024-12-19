@@ -53,7 +53,7 @@ const char always_on_my_mind_json[] PROGMEM = R"({
     }, {
       "track": 1,
       "clip": 2,
-      "description": "synth bass 2",
+      "description": "synth bass 3",
       "bars": [6,10,14],
       "messages": [
         [],[144, 47, 127],[144, 47, 127],[128,47,0],
@@ -64,7 +64,7 @@ const char always_on_my_mind_json[] PROGMEM = R"({
     }, {
       "track": 1,
       "clip": 3,
-      "description": "synth bass 2",
+      "description": "synth bass 4",
       "bars": [7,11,15],
       "messages": [
         [],[144, 38, 127],[144, 38, 127],[128,38,0],
@@ -72,7 +72,7 @@ const char always_on_my_mind_json[] PROGMEM = R"({
         [144, 38, 127],[128,38,0],[144, 38, 127],[128,38,0],
         [144, 38, 127],[128,38,0],[144, 38, 127],[144, 38, 127]
       ]
-    
+    }
   ]
 })";
 #endif

@@ -123,6 +123,7 @@ void setup() {
   digitalWrite(__RESET_PIN, HIGH); // not reset input arrays
 
   Wire.begin();
+  SPI.begin();
   // serial
   Serial.begin(115200); // debugging
   Serial1.begin(31250); // midi serial
